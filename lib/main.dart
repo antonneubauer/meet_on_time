@@ -5,6 +5,9 @@ import 'dart:math' show cos, sqrt, asin;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:meet_on_time/MyRequest.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io';
+
 
 void main() {
   runApp(MyApp());
@@ -217,9 +220,9 @@ class _HomeState extends State<Home> {
                 },
               ),
               ElevatedButton(
-                child: Text('Send'),
+                child: Text('Login'),
                 onPressed: () {
-                  sendRequest();
+                  sendLoginRequest();
                   setState(() {
 
                   });
@@ -229,10 +232,20 @@ class _HomeState extends State<Home> {
   }
 }
 
-  sendRequest() async{
-    final myRequest = new MyRequest("select id, name from nutzer");
-    String response = await myRequest.httpPost();
+sendLoginRequest() async{
+  var myRequest;
+  //funktioniert
+  myRequest = new MyRequest("SELECT * FROM meet_on_time_sessions");
+
+  //die geben alle 503
+  //myRequest = new MyRequest("INSERT INTO meet_on_time_users (device_id, alias) VALUES ('wer', 'er');");
+     //myRequest = new MyRequest("INSERT INTO `meet_on_time_data` (`ID`, `session_id`, `longitude`, `latitude`, `timestamp`) VALUES (NULL, '121233', '3321', '2334', '2342343');");
+    //myRequest = new MyRequest("INSERT INTO meet_on_time_sessions (ID) VALUES (NULL);");
+
+    String response = await myRequest.getResponse();
     print(response);
+    //Map<String, dynamic> contents = json.decode(response);
+    //print(contents);
   }
 
 
@@ -262,7 +275,18 @@ class Weather {
     print("rainLastHour: " + this.rainLastHour.toString());
   }
 }
-
+Future<String?> _getId() async {
+  var deviceInfo = DeviceInfoPlugin();
+  if (Platform.isIOS) { // import 'dart:io'
+    var iosDeviceInfo = await deviceInfo.iosInfo;
+    return iosDeviceInfo.identifierForVendor; // unique ID on iOS
+  } else if(Platform.isAndroid) {
+    var androidDeviceInfo = await deviceInfo.androidInfo;
+    return androidDeviceInfo.androidId; // unique ID on Android
+  } else{
+    return "browser";
+  }
+}
 //helper
 
 double calculateDistance(lat1, lon1, lat2, lon2) {

@@ -5,17 +5,20 @@ import 'dart:convert' show jsonDecode, utf8;
 class MyRequest {
   String pwd = Values.pwd;
   String url = Values.url;
-  late String sql;
+  late String _sql;
   late Uri uri;
+  late String requestURL;
   var queryParameters;
 
+
   MyRequest(String sql) {
-    this.sql = sql;
-    queryParameters = {
-      'pwd': pwd,
-      'sql': sql,
-      'json': 'true',
-    };
+    _sql = Uri.encodeQueryComponent(sql);
+        /*.replaceAll(" ", "+")
+        .replaceAll(",", "%2C")
+        .replaceAll("(", "%28")
+        .replaceAll(")", "%29");/**/*/
+    this.requestURL = "$url?pwd=$pwd&sql=$_sql&json=true";
+    print (requestURL);
   }
 
   Future<String> httpPost() async {
@@ -31,7 +34,7 @@ class MyRequest {
             "?pwd=" +
             pwd +
             "&sql=" +
-            sql.replaceAll(" ", "+").replaceAll(",", "%2C") +
+            _sql.replaceAll(" ", "+").replaceAll(",", "%2C") +
             "&json=true"),
         headers: myHeaders);
     //final response = await http.post(Values.uri, body: queryParameters);
@@ -40,11 +43,12 @@ class MyRequest {
   }
 
   Future<String> getResponse() async {
-    final response = await http.get(uri);
+    final response = await http.get(Uri.parse(requestURL));
     if (response.statusCode == 200) {
       print("got response");
       return response.body;
     }
-    return "failed";
+    int responseCode = response.statusCode;
+    return "failed:$responseCode";
   }
 }
