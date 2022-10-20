@@ -53,9 +53,11 @@ class _HomeState extends State<Home> {
     setDeviceID();
     super.initState();
   }
-  setDeviceID() async{
+
+  setDeviceID() async {
     deviceID = await _getDeviceId();
   }
+
   checkGps() async {
     servicestatus = await Geolocator.isLocationServiceEnabled();
     if (servicestatus) {
@@ -215,26 +217,22 @@ class _HomeState extends State<Home> {
                 child: Text('Login with new Session'),
                 onPressed: () {
                   sendLoginRequest();
-                  setState(() {
-
-                  });
+                  setState(() {});
                 },
               ),
               ElevatedButton(
                 child: Text('upload waypoint'),
                 onPressed: () {
                   uploadLastWaypoint();
-                  setState(() {
-
-                  });
+                  setState(() {});
                 },
               ),
               ElevatedButton(
-                child: Text(isRecording?'finish recording':'start recording'),
+                child: Text(isRecording ? 'finish recording' : 'start recording'),
                 onPressed: () {
-                  if(isRecording){
+                  if (isRecording) {
                     stopRecording();
-                  }else{
+                  } else {
                     startRecording();
                   }
                   setState(() {
@@ -244,39 +242,42 @@ class _HomeState extends State<Home> {
               )
             ])));
   }
-  startRecording() async{
+
+  startRecording() async {
     //timer = Timer.periodic(Duration(seconds: 15), (Timer t) => measureAndUpload());
-
   }
-  stopRecording() async{
-
-  }
-  measureAndUpload() async{
+  stopRecording() async {}
+  measureAndUpload() async {
     await loginIfNotLoggedIn();
     await addWayPoint();
     await uploadLastWaypoint();
   }
-  loginIfNotLoggedIn() async{
-    if(!loggedIn){
+
+  loginIfNotLoggedIn() async {
+    if (!loggedIn) {
       print("logging in");
       await sendLoginRequest();
     }
   }
-  uploadLastWaypoint() async{
+
+  uploadLastWaypoint() async {
     await loginIfNotLoggedIn();
-    if(long==""){
+    if (long == "") {
       await addWayPoint();
     }
-    var uploadSQL = "insert into meet_on_time_data (session_id, longitude, latitude, timestamp) values ('$sessionID', '$long', '$lat', '$lastTimeStamp')";
+    var uploadSQL =
+        "insert into meet_on_time_data (session_id, longitude, latitude, timestamp) values ('$sessionID', '$long', '$lat', '$lastTimeStamp')";
     await sqlNoResult(uploadSQL);
   }
-  sendLoginRequest() async{
+
+  sendLoginRequest() async {
     var existsUserSQL = "select count(id) from meet_on_time_users where device_id='$deviceID'";
 
     String userCount = await sqlResult(existsUserSQL, "count(id)", 0);
-    if(userCount == "0"){
+    if (userCount == "0") {
       print("creating new user");
-      var createUser = "insert into meet_on_time_users (device_id) values ('$deviceID')";    //TODO: also add alias
+      var createUser =
+          "insert into meet_on_time_users (device_id) values ('$deviceID')"; //TODO: also add alias
       await sqlNoResult(createUser);
     }
     var getUserIdSQL = "select id from meet_on_time_users where device_id='$deviceID'";
@@ -289,14 +290,12 @@ class _HomeState extends State<Home> {
 
     //get newest sessionID
     var getSessionIdSQL = "select max(id) from meet_on_time_sessions where user_id='$userID'";
-    sessionID =  int.parse(await sqlResult(getSessionIdSQL, "max(id)", 0));
+    sessionID = int.parse(await sqlResult(getSessionIdSQL, "max(id)", 0));
     print("sessionID=$sessionID");
 
     loggedIn = true;
   }
 }
-
-
 
 Future<String?> _getDeviceId() async {
   var deviceInfo = DeviceInfoPlugin();
@@ -313,13 +312,14 @@ Future<String?> _getDeviceId() async {
 }
 //helper
 
-Future<String> sqlResult(String sql, String key, int row) async{
+Future<String> sqlResult(String sql, String key, int row) async {
   var resp = await new MyRequest(sql).getResponse();
   print(resp);
   var respJSON = json.decode(resp);
   return (respJSON[row][key]);
 }
-sqlNoResult(String sql) async{
+
+sqlNoResult(String sql) async {
   await new MyRequest(sql).getResponse();
 }
 

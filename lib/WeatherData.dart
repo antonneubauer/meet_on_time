@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
-
 import 'Values.dart';
 import 'package:http/http.dart' as http;
 
@@ -20,12 +18,15 @@ class WeatherData {
       this.rainLastHour = json['rain']['1h'] as double;
     }
     this.show();
-    return;
   }
 
   static Future<WeatherData> weatherDataGet(double lat, double lon) async {
     int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    Map<String, dynamic> contents = await getCurrentWeatherResponse(lat, lon);
+    var requestURL = Uri.parse(buildWeatherRequestURI(lat, lon));
+
+    var response = await http.get(requestURL);
+    Map<String, dynamic> contents = json.decode(response.body);
+
     return WeatherData.set(timeStamp, contents);
   }
 
@@ -33,17 +34,9 @@ class WeatherData {
     // https://api.openweathermap.org/data/2.5/weather?lat={double}&lon={double}&appid={API-key}
     String baseURL = "https://api.openweathermap.org/data/2.5/weather?";
     String apiKey = Values.openWeatherApiKey;
-
     String requestURI = "${baseURL}lat=$lat&lon=$lon&appid=$apiKey";
 
     return requestURI;
-  }
-
-  static Future<Map<String, dynamic>> getCurrentWeatherResponse(double lat, double lon) async {
-    var requestURL = Uri.parse(buildWeatherRequestURI(lat, lon));
-    var response = await http.get(requestURL);
-    Map<String, dynamic> contents = json.decode(response.body);
-    return contents;
   }
 
   show() {
