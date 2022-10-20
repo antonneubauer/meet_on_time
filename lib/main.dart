@@ -58,14 +58,17 @@ class _HomeState extends State<Home> {
     setDeviceID();
     super.initState();
   }
+
   @override
   void dispose() {
     timer?.cancel();
     super.dispose();
   }
+
   setDeviceID() async{
     deviceID = await _getDeviceId();
   }
+
   checkGps() async {
     servicestatus = await Geolocator.isLocationServiceEnabled();
     if (servicestatus) {
@@ -216,26 +219,22 @@ class _HomeState extends State<Home> {
                 child: Text('Login with new Session'),
                 onPressed: () {
                   getNewSessionID();
-                  setState(() {
-
-                  });
+                  setState(() {});
                 },
               ),
               ElevatedButton(
                 child: Text('upload waypoint'),
                 onPressed: () {
                   uploadLastWaypoint();
-                  setState(() {
-
-                  });
+                  setState(() {});
                 },
               ),
               ElevatedButton(
-                child: Text(isRecording?'finish recording':'start recording'),
+                child: Text(isRecording ? 'finish recording' : 'start recording'),
                 onPressed: () {
-                  if(isRecording){
+                  if (isRecording) {
                     stopRecording();
-                  }else{
+                  } else {
                     startRecording();
                   }
                   setState(() {
@@ -248,6 +247,7 @@ class _HomeState extends State<Home> {
               )
             ])));
   }
+
   startRecording() async {
     print("start recording");
     await getNewSessionID();
@@ -265,26 +265,31 @@ class _HomeState extends State<Home> {
     await uploadLastWaypoint();
     setState(() {});
   }
-  loginIfNotLoggedIn() async{
-    if(!loggedIn){
+
+  loginIfNotLoggedIn() async {
+    if (!loggedIn) {
       print("logging in");
       await sendLoginRequest();
     }
   }
-  uploadLastWaypoint() async{
+
+  uploadLastWaypoint() async {
     await loginIfNotLoggedIn();
-    if(long==""){
+    if (long == "") {
       await addWayPoint();
     }
-    var uploadSQL = "insert into meet_on_time_data (session_id, longitude, latitude, timestamp) values ('$sessionID', '$long', '$lat', '$lastTimeStamp')";
+    var uploadSQL =
+        "insert into meet_on_time_data (session_id, longitude, latitude, timestamp) values ('$sessionID', '$long', '$lat', '$lastTimeStamp')";
     await sqlNoResult(uploadSQL);
   }
+
   sendLoginRequest() async{
     var existingUserSQL = "select count(id) from meet_on_time_users where device_id='$deviceID'";
     String userCount = await sqlResult(existingUserSQL, "count(id)", 0);
     if(userCount == "0"){
       print("creating new user");
-      var createUser = "insert into meet_on_time_users (device_id) values ('$deviceID')";    //TODO: also add alias
+      var createUser =
+          "insert into meet_on_time_users (device_id) values ('$deviceID')"; //TODO: also add alias
       await sqlNoResult(createUser);
     }
     var getUserIdSQL = "select id from meet_on_time_users where device_id='$deviceID'";
@@ -302,7 +307,7 @@ class _HomeState extends State<Home> {
 
     //get newest sessionID
     var getSessionIdSQL = "select max(id) from meet_on_time_sessions where user_id='$userID'";
-    sessionID =  int.parse(await sqlResult(getSessionIdSQL, "max(id)", 0));
+    sessionID = int.parse(await sqlResult(getSessionIdSQL, "max(id)", 0));
     print("sessionID=$sessionID");
   }
 }
@@ -322,13 +327,14 @@ Future<String?> _getDeviceId() async {
 }
 //helper
 
-Future<String> sqlResult(String sql, String key, int row) async{
+Future<String> sqlResult(String sql, String key, int row) async {
   var resp = await new MyRequest(sql).getResponse();
   print(resp);
   var respJSON = json.decode(resp);
   return (respJSON[row][key]);
 }
-sqlNoResult(String sql) async{
+
+sqlNoResult(String sql) async {
   await new MyRequest(sql).getResponse();
 }
 
