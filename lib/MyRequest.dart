@@ -12,7 +12,8 @@ class MyRequest {
 
 
   MyRequest(String sql) {
-    _sql = Uri.encodeQueryComponent(sql);
+    _sql = sql.toLowerCase();
+    _sql = Uri.encodeQueryComponent(_sql);
     //for some reason there will be Error 503 when including this words
     _sql = _sql.replaceAll("into", "in!to")
                .replaceAll("values", "va!lues");

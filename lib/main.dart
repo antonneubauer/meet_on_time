@@ -9,6 +9,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 
 
+
+
 void main() {
   runApp(MyApp());
 }
@@ -30,20 +32,31 @@ class _HomeState extends State<Home> {
   bool haspermission = false;
   late LocationPermission permission;
   late Position position;
-  String long = "", lat = "";
-  String lastTimeStamp = "";
-  String lastVelocity = "";
+
   late StreamSubscription<Position> positionStream;
   List<Position> positions = [];
   List<int> timeStamps = [];
   List<Weather> weather = [];
 
+  bool loggedIn = false;
+  late var deviceID;
+  bool isRecording = false;
+//in database
+  late int sessionID;
+  late int userID;
+  String long = "", lat = "";
+  String lastTimeStamp = "";
+  String lastVelocity = "";
+
   @override
   void initState() {
     checkGps();
+    setDeviceID();
     super.initState();
   }
-
+  setDeviceID() async{
+    deviceID = await _getDeviceId();
+  }
   checkGps() async {
     servicestatus = await Geolocator.isLocationServiceEnabled();
     if (servicestatus) {
@@ -220,37 +233,90 @@ class _HomeState extends State<Home> {
                 },
               ),
               ElevatedButton(
-                child: Text('Login'),
+                child: Text('Login with new Session'),
                 onPressed: () {
                   sendLoginRequest();
                   setState(() {
 
                   });
                 },
+              ),
+              ElevatedButton(
+                child: Text('upload waypoint'),
+                onPressed: () {
+                  uploadLastWaypoint();
+                  setState(() {
+
+                  });
+                },
+              ),
+              ElevatedButton(
+                child: Text(isRecording?'finish recording':'start recording'),
+                onPressed: () {
+                  if(isRecording){
+                    stopRecording();
+                  }else{
+                    startRecording();
+                  }
+                  setState(() {
+                    isRecording = !isRecording;
+                  });
+                },
               )
             ])));
   }
+  startRecording() async{
+    //timer = Timer.periodic(Duration(seconds: 15), (Timer t) => measureAndUpload());
+
+  }
+  stopRecording() async{
+
+  }
+  measureAndUpload() async{
+    await loginIfNotLoggedIn();
+    await addWayPoint();
+    await uploadLastWaypoint();
+  }
+  loginIfNotLoggedIn() async{
+    if(!loggedIn){
+      print("logging in");
+      await sendLoginRequest();
+    }
+  }
+  uploadLastWaypoint() async{
+    await loginIfNotLoggedIn();
+    if(long==""){
+      await addWayPoint();
+    }
+    var uploadSQL = "insert into meet_on_time_data (session_id, longitude, latitude, timestamp) values ('$sessionID', '$long', '$lat', '$lastTimeStamp')";
+    await sqlNoResult(uploadSQL);
+  }
+  sendLoginRequest() async{
+    var existsUserSQL = "select count(id) from meet_on_time_users where device_id='$deviceID'";
+
+    String userCount = await sqlResult(existsUserSQL, "count(id)", 0);
+    if(userCount == "0"){
+      print("creating new user");
+      var createUser = "insert into meet_on_time_users (device_id) values ('$deviceID')";    //TODO: also add alias
+      await sqlNoResult(createUser);
+    }
+    var getUserIdSQL = "select id from meet_on_time_users where device_id='$deviceID'";
+    userID = int.parse(await sqlResult(getUserIdSQL, "id", 0));
+    print("userID=$userID");
+
+    print("init session");
+    var initSessionSQL = "insert into meet_on_time_sessions (user_id) values ('$userID')";
+    await sqlNoResult(initSessionSQL);
+
+    //get newest sessionID
+    var getSessionIdSQL = "select max(id) from meet_on_time_sessions where user_id='$userID'";
+    sessionID =  int.parse(await sqlResult(getSessionIdSQL, "max(id)", 0));
+    print("sessionID=$sessionID");
+
+    loggedIn = true;
+  }
 }
 
-sendLoginRequest() async{
-  var myRequest;
-  //funktioniert
-  //myRequest = new MyRequest("SELECT * FROM meet_on_time_sessions");
-
-  //die geben alle 503
-  //myRequest = new MyRequest("insert into meet_on_time_users (device_id, alias) values ('wer', 'er');");
-  //myRequest = new MyRequest("insert into meet_on_time_users device_id alias values wer er");
-  print(await(new MyRequest("insert into meet_on_time_users (device_id, alias) values ('w23er', 'er23');").getResponse()));
-
-
-
-     //myRequest = new MyRequest("INSERT INTO `meet_on_time_data` (`ID`, `session_id`, `longitude`, `latitude`, `timestamp`) VALUES (NULL, '121233', '3321', '2334', '2342343');");
-    //myRequest = new MyRequest("INSERT INTO meet_on_time_sessions (ID) VALUES (NULL);");
-
-
-    //Map<String, dynamic> contents = json.decode(response);
-    //print(contents);
-  }
 
 
 class Weather {
@@ -279,7 +345,7 @@ class Weather {
     print("rainLastHour: " + this.rainLastHour.toString());
   }
 }
-Future<String?> _getId() async {
+Future<String?> _getDeviceId() async {
   var deviceInfo = DeviceInfoPlugin();
   if (Platform.isIOS) { // import 'dart:io'
     var iosDeviceInfo = await deviceInfo.iosInfo;
@@ -292,6 +358,16 @@ Future<String?> _getId() async {
   }
 }
 //helper
+
+Future<String> sqlResult(String sql, String key, int row) async{
+  var resp = await new MyRequest(sql).getResponse();
+  print(resp);
+  var respJSON = json.decode(resp);
+  return (respJSON[row][key]);
+}
+sqlNoResult(String sql) async{
+  await new MyRequest(sql).getResponse();
+}
 
 double calculateDistance(lat1, lon1, lat2, lon2) {
   var p = 0.017453292519943295;
