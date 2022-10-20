@@ -298,7 +298,7 @@ class _HomeState extends State<Home> {
 
 
 
-Future<String?> _getId() async {
+Future<String?> _getDeviceId() async {
   var deviceInfo = DeviceInfoPlugin();
   if (Platform.isIOS) {
     // import 'dart:io'
