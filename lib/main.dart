@@ -10,6 +10,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 import 'Values.dart';
 
+const UPLOAD_INTERVAL = Duration(seconds: 15);
+
 void main() {
   runApp(MyApp());
 }
@@ -32,8 +34,11 @@ class _HomeState extends State<Home> {
   late LocationPermission permission;
   late Position position;
 
+  var timer;
+
   late StreamSubscription<Position> positionStream;
   List<Position> positions = [];
+  int positionsLength = 0;
   List<int> timeStamps = [];
   List<WeatherData> weather = [];
 
@@ -41,7 +46,7 @@ class _HomeState extends State<Home> {
   late var deviceID;
   bool isRecording = false;
 //in database
-  late int sessionID;
+  int sessionID = -1;
   late int userID;
   String long = "", lat = "";
   String lastTimeStamp = "";
@@ -52,6 +57,11 @@ class _HomeState extends State<Home> {
     checkGps();
     setDeviceID();
     super.initState();
+  }
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
   setDeviceID() async{
     deviceID = await _getDeviceId();
@@ -97,13 +107,12 @@ class _HomeState extends State<Home> {
   getLocation() async {
     print("getting location");
     position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    print("pos: ");
-    print(position.longitude); //Output: 80.24599079
-    print(position.latitude); //Output: 29.6593457
 
     long = position.longitude.toString();
     lat = position.latitude.toString();
+    print("pos: ($long, $lat)");
     positions.add(position);
+    positionsLength = positions.length;
     setState(() {
       //refresh UI
     });
@@ -160,7 +169,7 @@ class _HomeState extends State<Home> {
     double velocityInKmH = distInKm / timeInHours;
     print("v=$velocityInKmH");
     setState(() {
-      lastVelocity = velocityInKmH.toString();
+      lastVelocity = velocityInKmH.toStringAsFixed(3);
     });
   }
 
@@ -178,21 +187,13 @@ class _HomeState extends State<Home> {
             alignment: Alignment.center,
             padding: EdgeInsets.all(50),
             child: Column(children: [
-              Text(servicestatus ? "GPS is Enabled" : "GPS is disabled."),
-              Text(haspermission ? "GPS is Enabled" : "GPS is disabled."),
-              Text("Longitude: $long", style: TextStyle(fontSize: 20)),
-              Text(
-                "Latitude: $lat",
-                style: TextStyle(fontSize: 20),
-              ),
-              Text(
-                "Last Timestamp: $lastTimeStamp",
-                style: TextStyle(fontSize: 20),
-              ),
-              Text(
-                "Last Velocity: $lastVelocity km/h",
-                style: TextStyle(fontSize: 20),
-              ),
+              Text(servicestatus ? "servicestatus GPS is Enabled" : "servicestatus GPS is disabled."),
+              Text(haspermission ? "haspermission GPS is Enabled" : "haspermission GPS is disabled."),
+              Text("Pos: ($lat, $long)"),
+              Text("Last Timestamp: $lastTimeStamp"),
+              Text("Last Velocity: $lastVelocity km/h"),
+              Text("Waypoint count: $positionsLength"),
+              Text(sessionID == -1?"":"sessionID: $sessionID"),
               ElevatedButton(
                 child: Text('Measure'),
                 onPressed: () {
@@ -214,7 +215,7 @@ class _HomeState extends State<Home> {
               ElevatedButton(
                 child: Text('Login with new Session'),
                 onPressed: () {
-                  sendLoginRequest();
+                  getNewSessionID();
                   setState(() {
 
                   });
@@ -241,20 +242,28 @@ class _HomeState extends State<Home> {
                     isRecording = !isRecording;
                   });
                 },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: isRecording?Colors.redAccent:Colors.lightGreen
+                )
               )
             ])));
   }
-  startRecording() async{
-    //timer = Timer.periodic(Duration(seconds: 15), (Timer t) => measureAndUpload());
-
+  startRecording() async {
+    print("start recording");
+    await getNewSessionID();
+    await measureAndUpload();
+    timer = Timer.periodic(UPLOAD_INTERVAL, (Timer t) => measureAndUpload());
   }
   stopRecording() async{
-
+    print("stop recording");
+    timer?.cancel();
   }
   measureAndUpload() async{
+    print("automatic measureAndUpload");
     await loginIfNotLoggedIn();
     await addWayPoint();
     await uploadLastWaypoint();
+    setState(() {});
   }
   loginIfNotLoggedIn() async{
     if(!loggedIn){
@@ -271,9 +280,8 @@ class _HomeState extends State<Home> {
     await sqlNoResult(uploadSQL);
   }
   sendLoginRequest() async{
-    var existsUserSQL = "select count(id) from meet_on_time_users where device_id='$deviceID'";
-
-    String userCount = await sqlResult(existsUserSQL, "count(id)", 0);
+    var existingUserSQL = "select count(id) from meet_on_time_users where device_id='$deviceID'";
+    String userCount = await sqlResult(existingUserSQL, "count(id)", 0);
     if(userCount == "0"){
       print("creating new user");
       var createUser = "insert into meet_on_time_users (device_id) values ('$deviceID')";    //TODO: also add alias
@@ -283,6 +291,11 @@ class _HomeState extends State<Home> {
     userID = int.parse(await sqlResult(getUserIdSQL, "id", 0));
     print("userID=$userID");
 
+    loggedIn = true;
+  }
+  getNewSessionID() async{
+    await loginIfNotLoggedIn();
+
     print("init session");
     var initSessionSQL = "insert into meet_on_time_sessions (user_id) values ('$userID')";
     await sqlNoResult(initSessionSQL);
@@ -291,12 +304,8 @@ class _HomeState extends State<Home> {
     var getSessionIdSQL = "select max(id) from meet_on_time_sessions where user_id='$userID'";
     sessionID =  int.parse(await sqlResult(getSessionIdSQL, "max(id)", 0));
     print("sessionID=$sessionID");
-
-    loggedIn = true;
   }
 }
-
-
 
 Future<String?> _getDeviceId() async {
   var deviceInfo = DeviceInfoPlugin();
