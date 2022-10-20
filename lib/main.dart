@@ -233,15 +233,18 @@ class _HomeState extends State<Home> {
 sendLoginRequest() async {
   var myRequest;
   //funktioniert
-  myRequest = new MyRequest("SELECT * FROM meet_on_time_sessions");
+  //myRequest = new MyRequest("SELECT * FROM meet_on_time_sessions");
 
   //die geben alle 503
-  //myRequest = new MyRequest("INSERT INTO meet_on_time_users (device_id, alias) VALUES ('wer', 'er');");
+  //myRequest = new MyRequest("insert into meet_on_time_users (device_id, alias) values ('wer', 'er');");
+  //myRequest = new MyRequest("insert into meet_on_time_users device_id alias values wer er");
+  print(await (new MyRequest(
+          "insert into meet_on_time_users (device_id, alias) values ('w23er', 'er23');")
+      .getResponse()));
+
   //myRequest = new MyRequest("INSERT INTO `meet_on_time_data` (`ID`, `session_id`, `longitude`, `latitude`, `timestamp`) VALUES (NULL, '121233', '3321', '2334', '2342343');");
   //myRequest = new MyRequest("INSERT INTO meet_on_time_sessions (ID) VALUES (NULL);");
 
-  String response = await myRequest.getResponse();
-  print(response);
   //Map<String, dynamic> contents = json.decode(response);
   //print(contents);
 }

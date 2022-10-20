@@ -13,10 +13,9 @@ class MyRequest {
 
   MyRequest(String sql) {
     _sql = Uri.encodeQueryComponent(sql);
-        /*.replaceAll(" ", "+")
-        .replaceAll(",", "%2C")
-        .replaceAll("(", "%28")
-        .replaceAll(")", "%29");/**/*/
+    //for some reason there will be Error 503 when including this words
+    _sql = _sql.replaceAll("into", "in!to")
+               .replaceAll("values", "va!lues");
     this.requestURL = "$url?pwd=$pwd&sql=$_sql&json=true";
     print (requestURL);
   }
