@@ -5,11 +5,10 @@ import 'dart:math' show cos, sqrt, asin;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:meet_on_time/MyRequest.dart';
+import 'package:meet_on_time/WeatherData.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
-
-
-
+import 'Values.dart';
 
 void main() {
   runApp(MyApp());
@@ -36,7 +35,7 @@ class _HomeState extends State<Home> {
   late StreamSubscription<Position> positionStream;
   List<Position> positions = [];
   List<int> timeStamps = [];
-  List<Weather> weather = [];
+  List<WeatherData> weather = [];
 
   bool loggedIn = false;
   late var deviceID;
@@ -141,10 +140,11 @@ class _HomeState extends State<Home> {
     lastTimeStamp = timeStamp.toString();
     timeStamps.add(timeStamp);
   }
-  calcVelocity(){
-    try{
-    assert(positions.length == timeStamps.length);
-    }catch(e){
+
+  calcVelocity() {
+    try {
+      assert(positions.length == timeStamps.length);
+    } catch (e) {
       print("fehler: positions.length != timeStamps.length");
       setState(() {
         lastVelocity = "fehler";
@@ -164,30 +164,9 @@ class _HomeState extends State<Home> {
     });
   }
 
-  getAPIKey() {
-    return "";
-  }
-
-  buildWeatherRequestURI(double lat, double lon) {
-    // https://api.openweathermap.org/data/2.5/weather?lat={double}&lon={double}&appid={API-key}
-    String baseURL = "https://api.openweathermap.org/data/2.5/weather?";
-    String apiKey = getAPIKey();
-
-    String requestURI = "${baseURL}lat=$lat&lon=$lon&appid=$apiKey";
-
-    print(requestURI);
-
-    return requestURI;
-  }
-
-  Future<Weather> getCurrentWeather(double lat, double lon) async {
-    int timeStamp = DateTime.now().millisecondsSinceEpoch;
-    var requestURL = Uri.parse(buildWeatherRequestURI(lat, lon));
-    var response = await http.get(requestURL);
-    Map<String, dynamic> contents = json.decode(response.body);
-    print(contents);
-    Weather currentWeather = Weather(timeStamp, contents);
-    currentWeather.show();
+  Future<WeatherData> getCurrentWeather(double lat, double lon) async {
+    WeatherData currentWeather = await WeatherData.weatherDataGet(lat, lon);
+    weather.add(currentWeather);
     return currentWeather;
   }
 
@@ -319,41 +298,16 @@ class _HomeState extends State<Home> {
 
 
 
-class Weather {
-  late int sessionID; // for later use?
-  late int timestamp;
-  late double windStrength; // speed + gust / 2
-  late int windDirectionDeg;
-  late double rainLastHour;
-
-  Weather(int timestamp, json) {
-    this.sessionID = -1;
-    this.timestamp = timestamp;
-    this.windStrength = ((json['wind']['speed'] as double) + (json['wind']['gust'] as double)) / 2;
-    this.windDirectionDeg = json['wind']['deg'] as int;
-    if (json['rain'] != null) {
-      this.rainLastHour = json['rain']['1h'] as double;
-    }
-  }
-
-  show() {
-    print("current Weather:");
-    print("sessionID: " + this.sessionID.toString());
-    print("timestamp: " + this.timestamp.toString());
-    print("windStrength: " + this.windStrength.toString());
-    print("windDirectionDeg: " + this.windDirectionDeg.toString());
-    print("rainLastHour: " + this.rainLastHour.toString());
-  }
-}
-Future<String?> _getDeviceId() async {
+Future<String?> _getId() async {
   var deviceInfo = DeviceInfoPlugin();
-  if (Platform.isIOS) { // import 'dart:io'
+  if (Platform.isIOS) {
+    // import 'dart:io'
     var iosDeviceInfo = await deviceInfo.iosInfo;
     return iosDeviceInfo.identifierForVendor; // unique ID on iOS
-  } else if(Platform.isAndroid) {
+  } else if (Platform.isAndroid) {
     var androidDeviceInfo = await deviceInfo.androidInfo;
     return androidDeviceInfo.androidId; // unique ID on Android
-  } else{
+  } else {
     return "browser";
   }
 }
